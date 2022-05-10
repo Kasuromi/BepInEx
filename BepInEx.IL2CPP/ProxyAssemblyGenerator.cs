@@ -14,7 +14,6 @@ using HarmonyLib;
 using Il2CppDumper;
 using Mono.Cecil;
 using UnhollowerBaseLib;
-using AssemblyUnhollowerRunner = AssemblyUnhollower.Program;
 using Logger = BepInEx.Logging.Logger;
 
 namespace BepInEx.IL2CPP;
@@ -42,7 +41,7 @@ internal static class ProxyAssemblyGenerator
 
     private static readonly ConfigEntry<IL2CPPDumperType> ConfigIl2CppDumperType = ConfigFile.CoreConfig.Bind(
      "IL2CPP", "Il2CppDumperType",
-     IL2CPPDumperType.Il2CppDumper,
+     IL2CPPDumperType.Cpp2IL,
      new StringBuilder()
          .AppendLine("The IL2CPP metadata dumper tool to use when generating dummy assemblies for Il2CppAssemblyUnhollower.")
          .AppendLine("Il2CppDumper - Default. The traditional choice that has been used by BepInEx.")
@@ -93,7 +92,7 @@ internal static class ProxyAssemblyGenerator
             }
 
         // Hash some common dependencies as they can affect output
-        HashString(md5, typeof(AssemblyUnhollowerRunner).Assembly.GetName().Version.ToString());
+        HashString(md5, typeof(UnhollowedAssemblyGenerator).Assembly.GetName().Version.ToString());
         HashString(md5, typeof(Cpp2IlApi).Assembly.GetName().Version.ToString());
         HashString(md5, typeof(Il2CppDumper.Il2CppDumper).Assembly.GetName().Version.ToString());
 
@@ -145,9 +144,9 @@ internal static class ProxyAssemblyGenerator
         });
 
         var runner =
-            (AppDomainRunner)AppDomainHelper.CreateInstanceAndUnwrap(domain,
-                                                                     typeof(AppDomainRunner).Assembly.FullName,
-                                                                     typeof(AppDomainRunner).FullName);
+            (AppDomainRunner) AppDomainHelper.CreateInstanceAndUnwrap(domain,
+                                                                      typeof(AppDomainRunner).Assembly.FullName,
+                                                                      typeof(AppDomainRunner).FullName);
 
         runner.Setup(Paths.ExecutablePath, Preloader.IL2CPPUnhollowedPath, Paths.BepInExRootPath,
                      Paths.ManagedPath);
@@ -313,6 +312,8 @@ internal static class ProxyAssemblyGenerator
                 Cpp2IlApi.InitializeLibCpp2Il(GameAssemblyPath, metadataPath, cpp2IlUnityVersion, false);
 
                 sourceAssemblies = Cpp2IlApi.MakeDummyDLLs();
+
+                Cpp2IlApi.DisposeAndCleanupAll();
             }
 
             stopwatch.Stop();
@@ -341,28 +342,8 @@ internal static class ProxyAssemblyGenerator
             if (File.Exists(renameMapLocation))
             {
                 listener.DoPreloaderLog("Parsing deobfuscation rename mappings", LogLevel.Info);
-
-                using var fileStream =
-                    new FileStream(renameMapLocation, FileMode.Open, FileAccess.Read, FileShare.Read);
-                using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
-
-                using var reader = new StreamReader(gzipStream, Encoding.UTF8, false);
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
-                        continue;
-
-                    var mapping = line.Split(';');
-
-                    if (mapping.Length != 2)
-                        continue;
-
-                    unhollowerOptions.RenameMap[mapping[0]] = mapping[1];
-                }
+                unhollowerOptions.ReadRenameMap(renameMapLocation);
             }
-
 
             listener.DoPreloaderLog("Executing Il2CppUnhollower generator", LogLevel.Info);
 
@@ -373,7 +354,7 @@ internal static class ProxyAssemblyGenerator
 
             try
             {
-                AssemblyUnhollowerRunner.Main(unhollowerOptions);
+                UnhollowedAssemblyGenerator.GenerateUnhollowedAssemblies(unhollowerOptions);
             }
             catch (Exception e)
             {
