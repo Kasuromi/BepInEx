@@ -1,4 +1,4 @@
-﻿namespace BepInEx.IL2CPP.UnityEngine;
+namespace BepInEx.IL2CPP.UnityEngine;
 
 public enum KeyCode
 {
@@ -333,7 +333,7 @@ public enum KeyCode
 public static class Input
 {
     private static readonly GetKeyIntDelegate GetKeyInt_Value
-        = UnhollowerBaseLib.IL2CPP
+        = Il2CppInterop.Runtime.IL2CPP
                            .ResolveICall<GetKeyIntDelegate>("UnityEngine.Input::GetKeyInt(UnityEngine.KeyCode)");
 
     public static bool GetKeyInt(KeyCode key) => GetKeyInt_Value(key);

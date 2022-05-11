@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -7,12 +7,12 @@ using System.Runtime.InteropServices;
 using BepInEx.Logging;
 using HarmonyLib;
 using HarmonyLib.Public.Patching;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Runtime;
+using Il2CppInterop.Runtime.Runtime.VersionSpecific.MethodInfo;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using MonoMod.Utils;
-using UnhollowerBaseLib;
-using UnhollowerBaseLib.Runtime;
-using UnhollowerBaseLib.Runtime.VersionSpecific.MethodInfo;
 using ValueType = Il2CppSystem.ValueType;
 using Void = Il2CppSystem.Void;
 
@@ -21,21 +21,21 @@ namespace BepInEx.IL2CPP.Hook;
 public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
 {
     private static readonly MethodInfo IL2CPPToManagedStringMethodInfo
-        = AccessTools.Method(typeof(UnhollowerBaseLib.IL2CPP),
-                             nameof(UnhollowerBaseLib.IL2CPP.Il2CppStringToManaged));
+        = AccessTools.Method(typeof(Il2CppInterop.Runtime.IL2CPP),
+                             nameof(Il2CppInterop.Runtime.IL2CPP.Il2CppStringToManaged));
 
     private static readonly MethodInfo ManagedToIL2CPPStringMethodInfo
-        = AccessTools.Method(typeof(UnhollowerBaseLib.IL2CPP),
-                             nameof(UnhollowerBaseLib.IL2CPP.ManagedStringToIl2Cpp));
+        = AccessTools.Method(typeof(Il2CppInterop.Runtime.IL2CPP),
+                             nameof(Il2CppInterop.Runtime.IL2CPP.ManagedStringToIl2Cpp));
 
     private static readonly MethodInfo ObjectBaseToPtrMethodInfo
-        = AccessTools.Method(typeof(UnhollowerBaseLib.IL2CPP),
-                             nameof(UnhollowerBaseLib.IL2CPP.Il2CppObjectBaseToPtr));
+        = AccessTools.Method(typeof(Il2CppInterop.Runtime.IL2CPP),
+                             nameof(Il2CppInterop.Runtime.IL2CPP.Il2CppObjectBaseToPtr));
 
     private static readonly MethodInfo ReportExceptionMethodInfo
         = AccessTools.Method(typeof(IL2CPPDetourMethodPatcher), nameof(ReportException));
 
-    private static readonly ManualLogSource DetourLogger = Logger.CreateLogSource("Detour");
+    private static readonly ManualLogSource DetourLogger = BepInEx.Logging.Logger.CreateLogSource("Detour");
 
     // Map each value type to correctly sized store opcode to prevent memory overwrite
     // Special case: bool is byte in Il2Cpp
@@ -78,12 +78,12 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
     {
         try
         {
-            var methodField = UnhollowerUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(Original);
+            var methodField = Il2CppInterop.Runtime.Il2CppInteropUtils.GetIl2CppMethodInfoPointerFieldForGeneratedMethod(Original);
 
             if (methodField == null)
             {
                 var fieldInfoField =
-                    UnhollowerUtils.GetIl2CppFieldInfoPointerFieldForGeneratedFieldAccessor(Original);
+                    Il2CppInterop.Runtime.Il2CppInteropUtils.GetIl2CppFieldInfoPointerFieldForGeneratedFieldAccessor(Original);
 
                 if (fieldInfoField != null)
                     throw new
@@ -160,16 +160,16 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
 
         // Remove il2cpp_object_get_virtual_method
         if (cursor.TryGotoNext(x => x.MatchLdarg(0),
-                               x => x.MatchCall(typeof(UnhollowerBaseLib.IL2CPP),
-                                                nameof(UnhollowerBaseLib.IL2CPP.Il2CppObjectBaseToPtr)),
+                               x => x.MatchCall(typeof(Il2CppInterop.Runtime.IL2CPP),
+                                                nameof(Il2CppInterop.Runtime.IL2CPP.Il2CppObjectBaseToPtr)),
                                x => x.MatchLdsfld(out _),
-                               x => x.MatchCall(typeof(UnhollowerBaseLib.IL2CPP),
-                                                nameof(UnhollowerBaseLib.IL2CPP.il2cpp_object_get_virtual_method))))
+                               x => x.MatchCall(typeof(Il2CppInterop.Runtime.IL2CPP),
+                                                nameof(Il2CppInterop.Runtime.IL2CPP.il2cpp_object_get_virtual_method))))
             cursor.RemoveRange(4);
         else
             cursor.Goto(0)
                   .GotoNext(x =>
-                                x.MatchLdsfld(UnhollowerUtils
+                                x.MatchLdsfld(Il2CppInteropUtils
                                                   .GetIl2CppMethodInfoPointerFieldForGeneratedMethod(Original)))
                   .Remove();
 
@@ -284,7 +284,7 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
             if (hasReturnBuffer)
             {
                 uint align = 0;
-                var size = UnhollowerBaseLib.IL2CPP.il2cpp_class_value_size(Il2CppTypeToClassPointer(managedReturnType),
+                var size = Il2CppInterop.Runtime.IL2CPP.il2cpp_class_value_size(Il2CppTypeToClassPointer(managedReturnType),
                                                                             ref align);
 
                 il.Emit(OpCodes.Ldarg_0);
@@ -327,7 +327,7 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
             // Struct that's passed on the stack => handle as general struct
             uint align = 0;
             var fixedSize =
-                UnhollowerBaseLib.IL2CPP.il2cpp_class_value_size(Il2CppTypeToClassPointer(managedType), ref align);
+                Il2CppInterop.Runtime.IL2CPP.il2cpp_class_value_size(Il2CppTypeToClassPointer(managedType), ref align);
             return GetFixedSizeStructType(fixedSize);
         }
         else if (managedType == typeof(string) || managedType.IsSubclassOf(typeof(Il2CppObjectBase))
@@ -374,8 +374,8 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
             // We don't handle byref structs on x86 yet but we're yet to encounter those
             il.Emit(Environment.Is64BitProcess ? OpCodes.Ldarg : OpCodes.Ldarga_S, argIndex);
             il.Emit(OpCodes.Call,
-                    AccessTools.Method(typeof(UnhollowerBaseLib.IL2CPP),
-                                       nameof(UnhollowerBaseLib.IL2CPP.il2cpp_value_box)));
+                    AccessTools.Method(typeof(Il2CppInterop.Runtime.IL2CPP),
+                                       nameof(Il2CppInterop.Runtime.IL2CPP.il2cpp_value_box)));
         }
         else
         {

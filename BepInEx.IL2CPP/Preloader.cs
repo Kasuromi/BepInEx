@@ -7,8 +7,7 @@ using BepInEx.Preloader.Core;
 using BepInEx.Preloader.Core.Logging;
 using BepInEx.Preloader.Core.Patching;
 using BepInEx.Preloader.RuntimeFixes;
-using UnhollowerBaseLib;
-using UnhollowerBaseLib.Runtime;
+using Il2CppInterop.Runtime.Runtime;
 
 namespace BepInEx.IL2CPP;
 
@@ -59,10 +58,10 @@ public static class Preloader
             Log.Log(LogLevel.Debug, $"BepInEx root path: {Paths.BepInExRootPath}");
 
             UnhollowerLog = Logger.CreateLogSource("Unhollower");
-            LogSupport.InfoHandler += UnhollowerLog.LogInfo;
-            LogSupport.WarningHandler += UnhollowerLog.LogWarning;
-            LogSupport.TraceHandler += UnhollowerLog.LogDebug;
-            LogSupport.ErrorHandler += UnhollowerLog.LogError;
+            Il2CppInterop.Runtime.Logger.InfoHandler += UnhollowerLog.LogInfo;
+            Il2CppInterop.Runtime.Logger.WarningHandler += UnhollowerLog.LogWarning;
+            Il2CppInterop.Runtime.Logger.TraceHandler += UnhollowerLog.LogDebug;
+            Il2CppInterop.Runtime.Logger.ErrorHandler += UnhollowerLog.LogError;
 
             InitializeUnityVersion();
 

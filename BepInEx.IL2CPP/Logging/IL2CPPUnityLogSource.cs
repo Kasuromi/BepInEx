@@ -10,7 +10,7 @@ public class IL2CPPUnityLogSource : ILogSource
     {
         Application.s_LogCallbackHandler = new Action<string, string, LogType>(UnityLogCallback);
 
-        UnhollowerBaseLib.IL2CPP
+        Il2CppInterop.Runtime.IL2CPP
                          .ResolveICall<
                              SetLogCallbackDefinedDelegate>("UnityEngine.Application::SetLogCallbackDefined")(true);
     }

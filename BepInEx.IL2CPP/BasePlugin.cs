@@ -1,6 +1,6 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 using BepInEx.Logging;
-using UnhollowerBaseLib;
+using Il2CppInterop.Runtime;
 
 namespace BepInEx.IL2CPP;
 
@@ -10,7 +10,7 @@ public abstract class BasePlugin
     {
         var metadata = MetadataHelper.GetMetadata(this);
 
-        Log = Logger.CreateLogSource(metadata.Name);
+        Log = BepInEx.Logging.Logger.CreateLogSource(metadata.Name);
 
         Config = new ConfigFile(Utility.CombinePaths(Paths.ConfigPath, metadata.GUID + ".cfg"), false, metadata);
     }

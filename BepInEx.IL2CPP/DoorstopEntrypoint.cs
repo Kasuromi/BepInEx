@@ -17,7 +17,7 @@ internal static class Entrypoint
         // We set it to the current directory first as a fallback, but try to use the same location as the .exe file.
         var silentExceptionLog = $"preloader_{DateTime.Now:yyyyMMdd_HHmmss_fff}.log";
         Mutex mutex = null;
-
+        Debugger.Launch();
         try
         {
             EnvVars.LoadVars();
@@ -26,8 +26,9 @@ internal static class Entrypoint
                 Path.Combine(Path.GetDirectoryName(EnvVars.DOORSTOP_PROCESS_PATH), silentExceptionLog);
 
             mutex = new Mutex(false,
-                              Process.GetCurrentProcess().ProcessName + EnvVars.DOORSTOP_PROCESS_PATH +
-                              typeof(Doorstop.Entrypoint).FullName);
+                              $"{Process.GetCurrentProcess().ProcessName}{EnvVars.DOORSTOP_PROCESS_PATH}{typeof(Doorstop.Entrypoint).FullName}"
+                              .Replace('\\', '/')
+            );
             mutex.WaitOne();
 
             UnityPreloaderRunner.PreloaderMain();

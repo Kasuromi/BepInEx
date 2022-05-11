@@ -41,13 +41,18 @@ public class NativeDetourHelper
     public static INativeDetour CreateAndApply<T>(nint from, T to, out T original, CallingConvention? callingConvention = null)
         where T : Delegate
     {
-        var toPtr = callingConvention != null
-            ? MonoExtensions.GetFunctionPointerForDelegate(to, callingConvention.Value)
-            : Marshal.GetFunctionPointerForDelegate(to);
+        // TODO: callingConvention ignored currently
+        var toPtr = Marshal.GetFunctionPointerForDelegate(to);
+        return CreateAndApply(from, toPtr, out original);
+    }
 
-        var detour = Create(from, toPtr);
-        original = detour.GenerateTrampoline<T>();
+    public static INativeDetour CreateAndApply<T>(nint from, nint to, out T original)
+        where T : Delegate
+    {
+        var detour = Create(from, to);
         detour.Apply();
+        // TODO: GenerateTrampoline throws exceptions about a call being made to an UnmanagedCallersOnly
+        original = Marshal.GetDelegateForFunctionPointer<T>(detour.TrampolinePtr);
         return detour;
     }
 }

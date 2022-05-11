@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -15,11 +15,12 @@ using BepInEx.Preloader.Core.Logging;
 using HarmonyLib.Public.Patching;
 using Il2Cpp.TlsAdapter;
 using MonoMod.RuntimeDetour;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Injection;
 using MonoMod.Utils;
-using UnhollowerBaseLib;
-using UnhollowerRuntimeLib;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
+using System.Runtime.CompilerServices;
 
 namespace BepInEx.IL2CPP;
 
@@ -80,10 +81,14 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
 
         gameAssemblyModule.BaseAddress.TryGetFunction("il2cpp_runtime_invoke", out var runtimeInvokePtr);
         PreloaderLogger.Log.Log(LogLevel.Debug, $"Runtime invoke pointer: 0x{runtimeInvokePtr.ToInt64():X}");
-        RuntimeInvokeDetour =
-            NativeDetourHelper.CreateAndApply(runtimeInvokePtr, OnInvokeMethod, out originalInvoke,
-                                            CallingConvention.Cdecl);
 
+        RuntimeInvokeDetour =
+            NativeDetourHelper.CreateAndApply(
+                runtimeInvokePtr,
+                OnInvokeMethod,
+                out originalInvoke
+            );
+        GCHandle.Alloc(originalInvoke, GCHandleType.Normal);
         if (gameAssemblyModule.BaseAddress.TryGetFunction("il2cpp_unity_install_unitytls_interface",
                                                           out var installTlsPtr))
             InstallUnityTlsInterfaceDetour =
@@ -107,7 +112,7 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
 
     private static IntPtr OnInvokeMethod(IntPtr method, IntPtr obj, IntPtr parameters, IntPtr exc)
     {
-        var methodName = Marshal.PtrToStringAnsi(UnhollowerBaseLib.IL2CPP.il2cpp_method_get_name(method));
+        var methodName = Marshal.PtrToStringAnsi(Il2CppInterop.Runtime.IL2CPP.il2cpp_method_get_name(method));
 
         var unhook = false;
 
