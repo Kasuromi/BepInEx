@@ -21,6 +21,7 @@ using MonoMod.Utils;
 using UnityEngine;
 using Logger = BepInEx.Logging.Logger;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace BepInEx.IL2CPP;
 
@@ -41,7 +42,9 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
 
     private static INativeDetour RuntimeInvokeDetour { get; set; }
     private static INativeDetour InstallUnityTlsInterfaceDetour { get; set; }
-
+#if NET6_0
+    private static List<object> DetourCache = new();
+#endif
     public static IL2CPPChainloader Instance { get; set; }
 
     /// <summary>
@@ -82,13 +85,18 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
         gameAssemblyModule.BaseAddress.TryGetFunction("il2cpp_runtime_invoke", out var runtimeInvokePtr);
         PreloaderLogger.Log.Log(LogLevel.Debug, $"Runtime invoke pointer: 0x{runtimeInvokePtr.ToInt64():X}");
 
+        RuntimeInvokeDetourDelegate invokeMethodDetour = OnInvokeMethod;
+
         RuntimeInvokeDetour =
             NativeDetourHelper.CreateAndApply(
                 runtimeInvokePtr,
-                OnInvokeMethod,
+                invokeMethodDetour,
                 out originalInvoke
             );
-        GCHandle.Alloc(originalInvoke, GCHandleType.Normal);
+#if NET6_0
+        DetourCache.Add(invokeMethodDetour);
+        DetourCache.Add(originalInvoke);
+#endif
         if (gameAssemblyModule.BaseAddress.TryGetFunction("il2cpp_unity_install_unitytls_interface",
                                                           out var installTlsPtr))
             InstallUnityTlsInterfaceDetour =
@@ -142,7 +150,10 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
         if (unhook)
         {
             RuntimeInvokeDetour.Dispose();
-
+#if NET6_0
+            DetourCache.Clear();
+            DetourCache = null;
+#endif
             PreloaderLogger.Log.Log(LogLevel.Debug, "Runtime invoke unpatched");
         }
 
