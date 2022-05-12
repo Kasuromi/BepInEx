@@ -58,6 +58,10 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
     private static ModuleBuilder fixedStructModuleBuilder;
     private static readonly Dictionary<int, Type> FixedStructCache = new();
 
+#if NET6_0
+    private static readonly Dictionary<object, object> DelegateCache = new();
+#endif
+
     private bool isValid;
     private INativeMethodInfoStruct modifiedNativeMethodInfo;
 
@@ -138,9 +142,12 @@ public unsafe class IL2CPPDetourMethodPatcher : MethodPatcher
         // Apply a detour from the unmanaged implementation to the patched harmony method
         var unmanagedDelegateType = DelegateTypeFactory.instance.CreateDelegateType(unmanagedTrampolineMethod,
             CallingConvention.Cdecl);
-
+        var unmanagedDelegate = unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType);
+#if NET6_0
+        DelegateCache[Original] = unmanagedDelegate;
+#endif
         var detourPtr =
-            Marshal.GetFunctionPointerForDelegate(unmanagedTrampolineMethod.CreateDelegate(unmanagedDelegateType));
+            Marshal.GetFunctionPointerForDelegate(unmanagedDelegate);
         nativeDetour = NativeDetourHelper.Create(originalNativeMethodInfo.MethodPointer, detourPtr);
         nativeDetour.Apply();
         modifiedNativeMethodInfo.MethodPointer = nativeDetour.TrampolinePtr;

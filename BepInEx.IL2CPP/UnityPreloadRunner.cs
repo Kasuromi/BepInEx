@@ -21,6 +21,7 @@ internal static class UnityPreloaderRunner
 
         // Cecil 0.11 requires one to manually set up list of trusted assemblies for assembly resolving
         AppDomain.CurrentDomain.AddCecilPlatformAssemblies(Paths.ManagedPath);
+        AppDomain.CurrentDomain.AddCecilPlatformAssemblies(Path.Combine(Paths.GameRootPath, "dotnet"));
 
         Preloader.IL2CPPUnhollowedPath = Path.Combine(Paths.BepInExRootPath, "unhollowed");
 
